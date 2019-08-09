@@ -29,6 +29,8 @@ void abir() {
   if(!aberto){
     myStepper.step(-512);
     aberto = true;
+    digitalWrite(19, HIGH);
+    digitalWrite(18, LOW);
     delay(500);
   }
 }
@@ -37,6 +39,8 @@ void fechar() {
   if(aberto){
     myStepper.step(512);
     aberto = false;
+    digitalWrite(19, LOW);
+    digitalWrite(18, HIGH);
     delay(500);
   }
 }
@@ -64,6 +68,9 @@ void setup()
 {
   Serial.begin(115200);
   delay(10);
+
+  pinMode(18, OUTPUT);
+  pinMode(19, OUTPUT);
 
 //#########################################
 // Configurações do Wifi
