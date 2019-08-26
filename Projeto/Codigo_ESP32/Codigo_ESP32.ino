@@ -3,6 +3,10 @@
 #include "ESPAsyncWebServer.h"
 #include "SPIFFS.h"
 
+#define Pino_arduino 16
+#define Led_Verde 19
+#define Led_Vermelho 18
+
 //WI-FI
 const char* ssid     = "MATHEUS 2G";
 const char* password = "12345670";
@@ -18,6 +22,7 @@ Stepper myStepper(stepsPerRevolution, 27, 25, 26, 33);
 //    VARIAVEIS GLOBAIS
 //#########################################
 
+boolean estado_pino_arduino = false;
 boolean aberto = false;
 String estado_porta;
 
@@ -29,8 +34,9 @@ void abir() {
   if(!aberto){
     myStepper.step(-512);
     aberto = true;
-    digitalWrite(19, HIGH);
-    digitalWrite(18, LOW);
+    digitalWrite(Led_Verde, HIGH);
+    digitalWrite(Led_Vermelho, LOW);
+    Serial.println("ABRIU !");
     delay(500);
   }
 }
@@ -39,8 +45,9 @@ void fechar() {
   if(aberto){
     myStepper.step(512);
     aberto = false;
-    digitalWrite(19, LOW);
-    digitalWrite(18, HIGH);
+    digitalWrite(Led_Verde, LOW);
+    digitalWrite(Led_Vermelho, HIGH);
+    Serial.println("FECHOU !");
     delay(500);
   }
 }
@@ -119,4 +126,11 @@ void setup()
 
 }
 
-void loop(){}
+void loop(){
+  estado_pino_arduino = digitalRead(Pino_arduino);
+  if(estado_pino_arduino){
+    abir();
+  }else{
+    fechar();
+  }
+}

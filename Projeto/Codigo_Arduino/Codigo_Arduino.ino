@@ -1,14 +1,22 @@
+#include <LiquidCrystal.h>
 #include <Adafruit_Fingerprint.h>
 #include <Keypad.h>
+
+#define Sinal_ESP 10
 
 //#########################################
 //    VARIAVEIS GLOBAIS
 //#########################################
 
+boolean aberto = false;
+
 /********** LEITOR BIOMETRICO **********/
 SoftwareSerial mySerial(2, 3);
 Adafruit_Fingerprint finger = Adafruit_Fingerprint(&mySerial);
 uint8_t id;
+
+/********** LCD **********/
+LiquidCrystal lcd(12, 11, 9, 8, 7, 6);
 
 /********** TECLADO MEMBRANA **********/
 const byte ROWS = 4; //four rows
@@ -20,8 +28,8 @@ char keys[ROWS][COLS] = {
   {'*','0','#','D'}
 };
 
-byte rowPins[ROWS] = {12, 11, 10, 9}; //connect to the row pinouts of the keypad
-byte colPins[COLS] = {8, 7, 6, 5}; //connect to the column pinouts of the keypad
+byte rowPins[ROWS] = {5, 4, A0, A1}; //connect to the row pinouts of the keypad
+byte colPins[COLS] = {A2, A3, A4, A5}; //connect to the column pinouts of the keypad
 
 Keypad keypad = Keypad( makeKeymap(keys), rowPins, colPins, ROWS, COLS );
 
@@ -44,6 +52,16 @@ uint8_t getFingerprintID();
 //#########################################
 
 void setup(){
+  lcd.begin(16, 2);
+
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("SO PRA NAO");
+  lcd.setCursor(0, 1);
+  lcd.print("FICAR EM BRANCO");
+
+  pinMode(Sinal_ESP, OUTPUT);
+
   Serial.begin(9600);
   while (!Serial);  // For Yun/Leo/Micro/Zero/...
   delay(100);
@@ -71,14 +89,27 @@ void setup(){
 //#########################################
 
 void loop() {
-  getFingerprintIDez();
-  delay(50);
-
   char key = keypad.getKey();
 
+  Serial.println("Esperando a escolha de alguma opcao:");
+  while (!key) {
+    key = keypad.getKey();
+  }
+
   if (key == 'A'){
-    alterar_senha();
+    if(verifica_senha()){
+      if(aberto){
+        digitalWrite(Sinal_ESP, LOW);
+        aberto = false;
+        Serial.println("FECHOU !");
+      }else{
+        digitalWrite(Sinal_ESP,HIGH);
+        aberto = true;
+        Serial.println("ABRIU !");
+      }
+    }
   }else if (key == 'B'){
+    alterar_senha();
     Serial.println(senha);
     Serial.println(tam_senha);
 
@@ -86,7 +117,7 @@ void loop() {
     if(verifica_senha()){
       Serial.println("Ready to enroll a fingerprint!");
       Serial.println("Please type in the ID # (from 1 to 127) you want to save this finger as...");
-      id = readnumber();
+      id = finger.templateCount + 1;
       if (id == 0) {// ID #0 not allowed, try again!
          return;
       }
@@ -97,12 +128,23 @@ void loop() {
     }
 
   }else if (key == 'D'){
-    //TO-DO
+    if(getFingerprintIDez()+1){
+      if(aberto){
+        digitalWrite(Sinal_ESP, LOW);
+        aberto = false;
+        Serial.println("FECHOU !");
+      }else{
+        digitalWrite(Sinal_ESP,HIGH);
+        aberto = true;
+        Serial.println("ABRIU !");
+      }
+    }
   }else if (key == '#'){
     //TO-DO
   }else if (key){
     Serial.println(key);
   }
+  delay(100);
 }
 
 //#########################################
@@ -133,7 +175,7 @@ int alterar_senha(){
   char key = "";
 
   if(verifica_senha()){
-
+    //senha = "";
     Serial.println("Insira sua senha nova:");
     key = keypad.getKey();
     while((key != '*') && (i < 10)){
