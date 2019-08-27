@@ -3,7 +3,8 @@
 #include "ESPAsyncWebServer.h"
 #include "SPIFFS.h"
 
-#define Pino_arduino 16
+#define Pino_in_arduino 4
+#define Pino_out_ardino 34
 #define Led_Verde 19
 #define Led_Vermelho 18
 
@@ -22,7 +23,8 @@ Stepper myStepper(stepsPerRevolution, 27, 25, 26, 33);
 //    VARIAVEIS GLOBAIS
 //#########################################
 
-boolean estado_pino_arduino = false;
+boolean estado_Pino_in_arduino = false;
+boolean estado_passado = false;
 boolean aberto = false;
 String estado_porta;
 
@@ -30,25 +32,25 @@ String estado_porta;
 //    FUNÇÕES
 //#########################################
 
-void abir() {
+void abrir() {
   if(!aberto){
-    myStepper.step(-512);
+    myStepper.step(512);
     aberto = true;
     digitalWrite(Led_Verde, HIGH);
     digitalWrite(Led_Vermelho, LOW);
     Serial.println("ABRIU !");
-    delay(500);
+    delay(100);
   }
 }
 
 void fechar() {
   if(aberto){
-    myStepper.step(512);
+    myStepper.step(-512);
     aberto = false;
     digitalWrite(Led_Verde, LOW);
     digitalWrite(Led_Vermelho, HIGH);
     Serial.println("FECHOU !");
-    delay(500);
+    delay(100);
   }
 }
 
@@ -76,8 +78,10 @@ void setup()
   Serial.begin(115200);
   delay(10);
 
-  pinMode(18, OUTPUT);
-  pinMode(19, OUTPUT);
+  pinMode(Pino_in_arduino, INPUT);
+  pinMode(Pino_out_ardino, OUTPUT);
+  pinMode(Led_Verde, OUTPUT);
+  pinMode(Led_Vermelho, OUTPUT);
 
 //#########################################
 // Configurações do Wifi
@@ -94,6 +98,20 @@ void setup()
     delay(1000);
     Serial.println("Connecting to WiFi..");
     Serial.println(WiFi.status());
+    digitalWrite(Led_Vermelho, HIGH);
+    delay(1000);
+    digitalWrite(Led_Vermelho, LOW);
+    if(WiFi.status() == 6){
+      Serial.println("REBOOTING ...");
+      ESP.restart();
+    }
+  }
+
+  for(int i=0; i<3; i++){
+    digitalWrite(Led_Verde, HIGH);
+    delay(500);
+    digitalWrite(Led_Verde, LOW);
+    delay(500);
   }
 
   Serial.println(WiFi.localIP());
@@ -107,7 +125,7 @@ void setup()
   });
 
   server.on("/ABRIR", HTTP_GET, [](AsyncWebServerRequest *request){
-    abir();
+    abrir();
     request->send(SPIFFS, "/index.html", String(), false, processor);
   });
 
@@ -122,15 +140,19 @@ void setup()
 // Configurações dos Motores
 //#########################################
 
-    myStepper.setSpeed(60);
+  myStepper.setSpeed(60);
 
+  digitalWrite(Led_Vermelho, HIGH);
 }
 
 void loop(){
-  estado_pino_arduino = digitalRead(Pino_arduino);
-  if(estado_pino_arduino){
-    abir();
-  }else{
-    fechar();
+  estado_passado = estado_Pino_in_arduino;
+  estado_Pino_in_arduino = digitalRead(Pino_in_arduino);
+  if(estado_Pino_in_arduino != estado_passado){
+    if(estado_Pino_in_arduino){
+      abrir();
+    }else{
+      fechar();
+    }
   }
 }

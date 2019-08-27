@@ -2,12 +2,14 @@
 #include <Adafruit_Fingerprint.h>
 #include <Keypad.h>
 
-#define Sinal_ESP 10
+#define Pino_out_ESP 13
+#define Pino_in_ESP 10
 
 //#########################################
 //    VARIAVEIS GLOBAIS
 //#########################################
 
+boolean estado_pino_ESP = false;
 boolean aberto = false;
 
 /********** LEITOR BIOMETRICO **********/
@@ -41,6 +43,8 @@ char senha[10] = "";
 //    DECLARAÇÃO DAS FUNÇÕES
 //#########################################
 
+void abrir();
+void fechar();
 int verifica_senha();
 int alterar_senha();
 uint8_t getFingerprintEnroll();
@@ -56,11 +60,9 @@ void setup(){
 
   lcd.clear();
   lcd.setCursor(0, 0);
-  lcd.print("SO PRA NAO");
-  lcd.setCursor(0, 1);
-  lcd.print("FICAR EM BRANCO");
+  lcd.print("CARREGANDO . . .");
 
-  pinMode(Sinal_ESP, OUTPUT);
+  pinMode(Pino_out_ESP, OUTPUT);
 
   Serial.begin(9600);
   while (!Serial);  // For Yun/Leo/Micro/Zero/...
@@ -74,8 +76,22 @@ void setup(){
     Serial.println("Found fingerprint sensor!");
   } else {
     Serial.println("Did not find fingerprint sensor :(");
-    while (1) { delay(1); }
+
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("SENSOR DIGITAL");
+    lcd.setCursor(0, 1);
+    lcd.print("NAO ENCONTRADO");
+
+    while (1) {
+      lcd.setCursor(14, 1);
+      lcd.print(".");
+      delay(1000);
+      lcd.print(" ");
+    }
   }
+
+  alterar_senha();
 
   finger.getTemplateCount();
   Serial.print("Sensor contains ");
@@ -90,24 +106,24 @@ void setup(){
 
 void loop() {
   char key = keypad.getKey();
-
+  int digital = 0;
   Serial.println("Esperando a escolha de alguma opcao:");
+
+  lcd.clear();
+  lcd.setCursor(4, 0);
+  lcd.print("ESCOLHA");
+  lcd.setCursor(3, 1);
+  lcd.print("UMA OPCAO:");
+
   while (!key) {
     key = keypad.getKey();
   }
 
   if (key == 'A'){
     if(verifica_senha()){
-      if(aberto){
-        digitalWrite(Sinal_ESP, LOW);
-        aberto = false;
-        Serial.println("FECHOU !");
-      }else{
-        digitalWrite(Sinal_ESP,HIGH);
-        aberto = true;
-        Serial.println("ABRIU !");
-      }
+      abrir();
     }
+
   }else if (key == 'B'){
     alterar_senha();
     Serial.println(senha);
@@ -116,7 +132,13 @@ void loop() {
   }else if (key == 'C'){
     if(verifica_senha()){
       Serial.println("Ready to enroll a fingerprint!");
-      Serial.println("Please type in the ID # (from 1 to 127) you want to save this finger as...");
+
+      lcd.clear();
+      lcd.setCursor(0, 0);
+      lcd.print("CADASTRANDO");
+      lcd.setCursor(0, 1);
+      lcd.print("DIGITAL");
+
       id = finger.templateCount + 1;
       if (id == 0) {// ID #0 not allowed, try again!
          return;
@@ -128,23 +150,71 @@ void loop() {
     }
 
   }else if (key == 'D'){
-    if(getFingerprintIDez()+1){
-      if(aberto){
-        digitalWrite(Sinal_ESP, LOW);
-        aberto = false;
-        Serial.println("FECHOU !");
-      }else{
-        digitalWrite(Sinal_ESP,HIGH);
-        aberto = true;
-        Serial.println("ABRIU !");
+    key = 0;
+    while(!(digital)){
+      if (key == 'D'){
+        break;
       }
+      digital = getFingerprintIDez() + 1;
+      Serial.println("Esperando Digital...");
+      lcd.clear();
+      lcd.setCursor(0, 0);
+      lcd.print("INSIRA A DIGITAL");
+      lcd.setCursor(0, 1);
+      lcd.print("D PARA CANCELAR");
+      delay(50);
+      key = keypad.getKey();
     }
+
+    if (!(key == 'D')){
+      abrir();
+    }
+
   }else if (key == '#'){
-    //TO-DO
+    fechar();
+
   }else if (key){
     Serial.println(key);
+
   }
   delay(100);
+}
+
+//#########################################
+//    FUNÇÕES MOTOR
+//#########################################
+
+void abrir() {
+  if(!aberto){
+    aberto = true;
+    digitalWrite(Pino_out_ESP,HIGH);
+    Serial.println("ABRIU !");
+    delay(100);
+  }else{
+    aberto = true;
+    digitalWrite(Pino_out_ESP,LOW);
+    delay(10);
+    digitalWrite(Pino_out_ESP,HIGH);
+    Serial.println("ABRIU !");
+    delay(100);
+  }
+
+}
+
+void fechar() {
+  if(aberto){
+    aberto = false;
+    digitalWrite(Pino_out_ESP, LOW);
+    Serial.println("FECHOU !");
+    delay(100);
+  }else{
+    aberto = false;
+    digitalWrite(Pino_out_ESP,HIGH);
+    delay(10);
+    digitalWrite(Pino_out_ESP,LOW);
+    Serial.println("FECHOU !");
+    delay(100);
+  }
 }
 
 //#########################################
@@ -157,6 +227,12 @@ int verifica_senha(){
   char senha_teste[10] = "";
 
   Serial.println("Confirme a sua senha:");
+  lcd.clear();
+  lcd.setCursor(2, 0);
+  lcd.print("CONFIRME SUA");
+  lcd.setCursor(5, 1);
+  lcd.print("SENHA:");
+  delay(1000);
 
   while (i < tam_senha) {
     senha_teste[i] = keypad.getKey();
@@ -177,6 +253,14 @@ int alterar_senha(){
   if(verifica_senha()){
     //senha = "";
     Serial.println("Insira sua senha nova:");
+
+    lcd.clear();
+    lcd.setCursor(3, 0);
+    lcd.print("INSIRA SUA");
+    lcd.setCursor(3, 1);
+    lcd.print("NOVA SENHA:");
+    delay(100);
+
     key = keypad.getKey();
     while((key != '*') && (i < 10)){
       if (key){
@@ -185,12 +269,30 @@ int alterar_senha(){
           i++;
         }else{
           Serial.println("Digito invalido, valores devem ser entre 0 - 9");
+
+          lcd.clear();
+          lcd.setCursor(0, 0);
+          lcd.print("DIGITO INVALIDO");
+          lcd.setCursor(0, 1);
+          lcd.print("E IGNORADO!");
+          delay(1000);
+          lcd.clear();
+          lcd.setCursor(4, 0);
+          lcd.print("CONTINUE");
         }
       }
       key = keypad.getKey();
     }
     tam_senha = i;
     Serial.println("Senha alterada com sucesso.");
+
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("SENHA ALTERADO");
+    lcd.setCursor(0, 1);
+    lcd.print("COM SUCESSO!!");
+    delay(1000);
+
   }else{
     Serial.println("Senha incorreta.");
   }
@@ -198,17 +300,18 @@ int alterar_senha(){
 }
 
 //#########################################
-//    FUNÇÕES TELA LCD
-//#########################################
-
-//TO-DO
-
-//#########################################
 //    FUNÇÕES LEITOR BIOMETRICO
 //#########################################
 uint8_t getFingerprintEnroll() {
   int p = -1;
-  Serial.print("Waiting for valid finger to enroll as #"); Serial.println(id);
+
+  Serial.print("Waiting for valid finger to enroll as #");
+  Serial.println(id);
+
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("INSIRA DIGITAL");
+
   while (p != FINGERPRINT_OK) {
     p = finger.getImage();
     switch (p) {
@@ -254,7 +357,13 @@ uint8_t getFingerprintEnroll() {
   }
 
   Serial.println("Remove finger");
+
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("TIRE O DEDO");
+
   delay(2000);
+
   p = 0;
   while (p != FINGERPRINT_NOFINGER) {
     p = finger.getImage();
@@ -262,6 +371,13 @@ uint8_t getFingerprintEnroll() {
   Serial.print("ID "); Serial.println(id);
   p = -1;
   Serial.println("Place same finger again");
+
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("COLOQUE O MESMO");
+  lcd.setCursor(1, 1);
+  lcd.print("DEDO NOVAMENTE");
+
   while (p != FINGERPRINT_OK) {
     p = finger.getImage();
     switch (p) {
@@ -307,7 +423,8 @@ uint8_t getFingerprintEnroll() {
   }
 
   // OK converted!
-  Serial.print("Creating model for #");  Serial.println(id);
+  Serial.print("Creating model for #");
+  Serial.println(id);
 
   p = finger.createModel();
   if (p == FINGERPRINT_OK) {
@@ -323,10 +440,19 @@ uint8_t getFingerprintEnroll() {
     return p;
   }
 
-  Serial.print("ID "); Serial.println(id);
+  Serial.print("ID ");
+  Serial.println(id);
+
   p = finger.storeModel(id);
   if (p == FINGERPRINT_OK) {
+
     Serial.println("Stored!");
+    lcd.clear();
+    lcd.setCursor(4, 0);
+    lcd.print("DIGITAL");
+    lcd.setCursor(3, 1);
+    lcd.print("CADASTRADA");
+
   } else if (p == FINGERPRINT_PACKETRECIEVEERR) {
     Serial.println("Communication error");
     return p;
