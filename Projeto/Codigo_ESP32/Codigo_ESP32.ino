@@ -94,6 +94,8 @@ void setup()
 
   WiFi.begin(ssid, password);
 
+  int contagem = 0;
+
   while (WiFi.status() != WL_CONNECTED) {
     delay(1000);
     Serial.println("Connecting to WiFi..");
@@ -101,10 +103,11 @@ void setup()
     digitalWrite(Led_Vermelho, HIGH);
     delay(1000);
     digitalWrite(Led_Vermelho, LOW);
-    if(WiFi.status() == 6){
+    if(contagem >= 5){
       Serial.println("REBOOTING ...");
       ESP.restart();
     }
+    contagem ++;
   }
 
   for(int i=0; i<3; i++){
